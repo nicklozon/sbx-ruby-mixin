@@ -1,7 +1,10 @@
 # syntax=docker/sandbox-kit:3
 schemaVersion: "3"
 kind: mixin
-displayName: Ruby mixin
+displayName: Ruby
+description: Install ruby as a mixin
+sourceUrl: https://github.com/nicklozon/sbx-ruby-mixin
+author: Nick Lozon <nicklozon@gmail.com>
 
 args:
   version:
