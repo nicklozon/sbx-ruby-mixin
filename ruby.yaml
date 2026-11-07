@@ -1,0 +1,40 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Ruby mixin
+
+args:
+  version:
+    default: "3.4.0"
+    pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+    description: Release to install, as published by ruby/ruby-builder.
+
+capabilities:
+  - type: com.docker.sandbox/lifecycle@1
+    config:
+      install:
+        - user: "0"
+          command: |
+            set -eu
+            RUBY_VERSION='${{ kit.args.version }}'
+
+            case "$(uname -m)" in
+              x86_64) asset_arch=x64 ;;
+              aarch64|arm64) asset_arch=arm64 ;;
+              *) echo "ruby/ruby-builder publishes no ${TARGETARCH} binaries" >&2; exit 1 ;;
+            esac
+
+            # ubuntu-22.04 is the oldest glibc (2.35) ruby-builder publishes for, so the
+            # binaries run on the widest range of workload images.
+            tag="ruby-${RUBY_VERSION}"
+            asset="${tag}-ubuntu-22.04-${asset_arch}.tar.gz"
+            url="https://github.com/ruby/ruby-builder/releases/download/${tag}/${asset}"
+            curl -fsSL -o /tmp/runtime.tar.gz "${url}"
+            tar xzf /tmp/runtime.tar.gz --strip-components=1 -C /usr/local
+            ldconfig
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      runtime:
+        allow:
+          - rubygems.org:443
+          - index.rubygems.org:443
