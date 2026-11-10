@@ -10,7 +10,7 @@ args:
   version:
     default: "3.4.0"
     pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
-    description: Release to install, as published by ruby/ruby-builder.
+    description: Release to install, as published by jdx/ruby.
 
 capabilities:
   - type: com.docker.sandbox/lifecycle@1
@@ -22,19 +22,28 @@ capabilities:
             RUBY_VERSION='${{ kit.args.version }}'
 
             case "$(uname -m)" in
-              x86_64) asset_arch=x64 ;;
+              x86_64) asset_arch=x86_64 ;;
               aarch64|arm64) asset_arch=arm64 ;;
-              *) echo "ruby/ruby-builder publishes no ${TARGETARCH} binaries" >&2; exit 1 ;;
+              *) echo "jdx/ruby publishes no $(uname -m) binaries" >&2; exit 1 ;;
             esac
 
-            # ubuntu-22.04 is the oldest glibc (2.35) ruby-builder publishes for, so the
-            # binaries run on the widest range of workload images.
-            tag="ruby-${RUBY_VERSION}"
-            asset="${tag}-ubuntu-22.04-${asset_arch}.tar.gz"
-            url="https://github.com/ruby/ruby-builder/releases/download/${tag}/${asset}"
+            # jdx/ruby tags each release with the bare version (e.g. 4.0.9) and builds
+            # portable tarballs, so they are not tied to a particular distro's glibc.
+            asset="ruby-${RUBY_VERSION}.${asset_arch}_linux.tar.gz"
+            url="https://github.com/jdx/ruby/releases/download/${RUBY_VERSION}/${asset}"
             curl -fsSL -o /tmp/runtime.tar.gz "${url}"
             tar xzf /tmp/runtime.tar.gz --strip-components=1 -C /usr/local
-            ldconfig
+
+            # The Ruby tree above is root-owned, so install gems into a separate directory
+            # the sandbox user can write to, as the official ruby Docker image does.
+            # /etc/sandbox-persistent.sh is what the sandbox's shells and agent source.
+            gem_home=/usr/local/bundle
+            mkdir -p "${gem_home}"
+            chmod 1777 "${gem_home}"
+            {
+              echo "export GEM_HOME=${gem_home}"
+              echo 'case ":$PATH:" in *":$GEM_HOME/bin:"*) ;; *) export PATH="$GEM_HOME/bin:$PATH" ;; esac'
+            } >> /etc/sandbox-persistent.sh
   - type: com.docker.sandbox/network-policy@1
     config:
       runtime:

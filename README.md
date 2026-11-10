@@ -10,23 +10,25 @@ sbx run shell --kit lulzon/ruby --kit-arg ruby.version=4.0.9
 
 ## Arguments
 
-| Argument       | Default | Description                                                                          |
-| -------------- | ------- | ------------------------------------------------------------------------------------ |
-| `ruby.version` | `3.4.0` | Ruby release to install, in `X.Y.Z` form, as published by [ruby/ruby-builder][rb]. |
+| Argument       | Default | Description                                                               |
+| -------------- | ------- | ------------------------------------------------------------------------- |
+| `ruby.version` | `3.4.0` | Ruby release to install, in `X.Y.Z` form, as published by [jdx/ruby][rb]. |
 
-[rb]: https://github.com/ruby/ruby-builder
+[rb]: https://github.com/jdx/ruby
 
 ## What it does
 
-- Downloads the prebuilt `ruby-<version>` tarball from [ruby/ruby-builder][rb] and extracts it into `/usr/local`.
+- Downloads the prebuilt portable `ruby-<version>.<arch>_linux.tar.gz` tarball from [jdx/ruby][rb] and extracts it into `/usr/local`.
 - Supports `x86_64` and `arm64`.
+- Creates `/usr/local/bundle`, writable by any user, and sets `GEM_HOME` to it and adds `/usr/local/bundle/bin` to `PATH` (through `/etc/sandbox-persistent.sh`). The Ruby install itself stays root-owned, so `gem install` and `bundle install` work as the sandbox user without `sudo`.
 - Allows outbound access to `rubygems.org:443` and `index.rubygems.org:443` at runtime so `gem` and `bundle` can install gems.
+
+## Build tools are not included
+
+This kit does not install a C compiler or any development libraries. Pure-Ruby gems install as-is, but a gem with a native extension fails to build until the tools it needs are installed manually, inside the sandbox.
 
 ## Requirements
 
-- The release must exist in [ruby/ruby-builder][rb] as `ruby-<version>`.
-- The sandbox image needs `curl` and `tar`, and glibc 2.35 or newer. The binaries are built on Ubuntu 22.04.
-
-## Files
-
-- `ruby.yaml`: the kit definition.
+- The release must exist in [jdx/ruby][rb], tagged `<version>`.
+- The sandbox image needs `curl` and `tar`, and glibc 2.17 or newer.
+- The workload must source `/etc/sandbox-persistent.sh` in its shells (Docker's `shell` workload and other `sbx@1` workloads do), or `GEM_HOME` and `PATH` won't be set.
